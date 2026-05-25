@@ -1,0 +1,72 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy DAGs & Expectations
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Sync DAGs to S3
+        run: |
+          aws s3 sync dags/ s3://${{ secrets.AIRFLOW_S3_BUCKET }}/dags/ \
+            --delete \
+            --exclude "__pycache__/*" \
+            --exclude "*.pyc"
+
+      - name: Sync Expectations to S3
+        run: |
+          aws s3 sync expectations/ s3://${{ secrets.AIRFLOW_S3_BUCKET }}/expectations/ \
+            --delete
+
+      - name: Sync Checkpoints to S3
+        run: |
+          aws s3 sync checkpoints/ s3://${{ secrets.AIRFLOW_S3_BUCKET }}/checkpoints/ \
+            --delete
+
+      - name: Wait for DAG sync
+        run: sleep 30
+
+      - name: Notify Slack
+        if: always()
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_AUTHOR="${{ github.actor }}"
+          STATUS="${{ job.status }}"
+
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"blocks\": [
+                {
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"Deploy ${STATUS}: dataops-pipeline\"
+                  }
+                },
+                {
+                  \"type\": \"section\",
+                  \"fields\": [
+                    {\"type\": \"mrkdwn\", \"text\": \"*Commit:* \`${COMMIT_SHA:0:7}\`\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Author:* ${COMMIT_AUTHOR}\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Branch:* main\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Status:* ${STATUS}\"}
+                  ]
+                }
+              ]
+            }"

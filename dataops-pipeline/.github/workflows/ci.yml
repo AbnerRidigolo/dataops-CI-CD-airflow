@@ -1,0 +1,100 @@
+name: CI - Lint & Test
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [develop]
+
+jobs:
+  lint:
+    name: Lint (black + flake8 + mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Black (format check)
+        run: black --check .
+
+      - name: Flake8 (lint)
+        run: flake8 dags/ ingestion/ transformations/ tests/ scripts/ --max-line-length 120
+
+      - name: Mypy (type check)
+        run: mypy dags/ ingestion/ transformations/ --ignore-missing-imports
+
+  test:
+    name: Test (pytest + coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Java (for PySpark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: pytest tests/ -v --tb=short --cov=ingestion --cov=transformations --cov=dags --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  validate-ge:
+    name: Validate GE Suites (JSON)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Validate all expectation suite JSONs
+        run: |
+          python -c "
+          import json, sys, glob
+          files = glob.glob('expectations/*.json')
+          if not files:
+              print('No JSON files found in expectations/')
+              sys.exit(1)
+          for f in files:
+              try:
+                  data = json.load(open(f))
+                  assert 'expectation_suite_name' in data, f'Missing suite name in {f}'
+                  assert 'expectations' in data, f'Missing expectations in {f}'
+                  print(f'  OK: {f} ({len(data[\"expectations\"])} expectations)')
+              except Exception as e:
+                  print(f'  FAIL: {f} -> {e}')
+                  sys.exit(1)
+          print(f'All {len(files)} suite files are valid.')
+          "

@@ -1,0 +1,26 @@
+name: bronze_orders_checkpoint
+config_version: 1.0
+class_name: Checkpoint
+module_name: great_expectations.checkpoint
+
+run_name_template: "bronze_orders_%Y%m%d_%H%M%S"
+
+validations:
+  - batch_request:
+      datasource_name: spark_datasource
+      data_connector_name: default_runtime_data_connector
+      data_asset_name: bronze_orders
+      batch_identifiers:
+        batch_date: "{{ batch_date }}"
+        layer: bronze
+      runtime_parameters:
+        batch_data: "{{ batch_data }}"
+    expectation_suite_name: bronze_orders_suite
+
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction
