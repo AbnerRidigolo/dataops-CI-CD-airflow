@@ -1,7 +1,6 @@
 # dataops-pipeline
 
-[![CI](https://github.com/YOUR_USER/dataops-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USER/dataops-pipeline/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/YOUR_USER/dataops-pipeline/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USER/dataops-pipeline)
+[![CI](https://github.com/AbnerRidigolo/dataops-CI-CD-airflow/actions/workflows/ci.yml/badge.svg)](https://github.com/AbnerRidigolo/dataops-CI-CD-airflow/actions/workflows/ci.yml)
 
 Pipeline DataOps completo para o dataset **Brazilian E-Commerce (Olist)** do Kaggle, com validação de dados em todas as camadas, orquestração, CI/CD e observabilidade.
 
@@ -12,7 +11,7 @@ Pipeline DataOps completo para o dataset **Brazilian E-Commerce (Olist)** do Kag
 ```
                        ┌──────────────────────────────────────────────────────┐
                        │                  GitHub Actions                     │
-                       │         ci.yml (lint+test)  deploy.yml (S3 sync)    │
+                       │         ci.yml (expectations)  deploy.yml (exemplo)    │
                        └──────────────┬──────────────────────┬───────────────┘
                                       │                      │
   ┌────────┐   CSV    ┌───────┐  Delta  ┌───────┐  Delta  ┌───────┐  Delta  ┌──────────┐
@@ -48,18 +47,19 @@ Pipeline DataOps completo para o dataset **Brazilian E-Commerce (Olist)** do Kag
 | **Great Expectations 0.18** | Validação declarativa de dados com suites versionáveis em JSON, Data Docs auto-gerados e integração nativa com Spark. |
 | **PySpark + Delta Lake** | Processamento distribuído com ACID transactions, time travel, e merge/upsert nativo para idempotência. |
 | **MinIO** | Drop-in replacement do S3 para desenvolvimento local — mesma API, zero custo, sem dependência de cloud. |
-| **GitHub Actions** | CI/CD integrado ao repositório, com jobs paralelos, cache de dependências e approval gates para produção. |
+| **GitHub Actions** | CI valida as suites de Great Expectations. O deploy para S3 é um exemplo que fica na subpasta do projeto. |
 | **Structlog** | Logging estruturado (JSON) para observabilidade — filtrável, parsável por ferramentas como Datadog/ELK. |
 | **Docker Compose** | Ambiente reprodutível com todos os serviços, healthchecks e volumes persistentes. |
 | **Slack Webhooks** | Alertas em tempo real para falhas de task, SLA misses e resumo de execução. |
 
 ---
 
-## Quick Start (5 comandos)
+## Quick Start
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/YOUR_USER/dataops-pipeline.git && cd dataops-pipeline
+git clone https://github.com/AbnerRidigolo/dataops-CI-CD-airflow.git
+cd dataops-CI-CD-airflow/dataops-pipeline
 
 # 2. Setup completo (env, Docker, GE, MinIO)
 make setup
@@ -113,7 +113,7 @@ kaggle datasets download -d olistbr/brazilian-ecommerce -p data/ --unzip
 
 ```
 dataops-pipeline/
-├── .github/workflows/     # CI (lint+test) e Deploy (S3 sync)
+├── .github/workflows/     # Exemplos de CI ampliado e deploy (inativos nessa subpasta)
 ├── dags/                  # DAG principal + utilities (alerts, GE operator)
 ├── expectations/          # Suites GE em JSON (bronze, silver, gold)
 ├── checkpoints/           # Checkpoints GE em YAML
@@ -169,7 +169,7 @@ dataops-pipeline/
 > - **Arquitetura Medallion (Bronze/Silver/Gold)** com Delta Lake para garantir ACID transactions e idempotência via merge/upsert
 > - **Apache Airflow 2.8** com CeleryExecutor, TaskGroups, sensores rescheduláveis e callbacks de SLA — orquestração robusta de verdade
 > - **Great Expectations** em todas as camadas: 3 suites com 25+ expectations validando schema, tipos, nulidade, unicidade e regras de negócio
-> - **CI/CD com GitHub Actions**: lint (black + flake8 + mypy), testes com cobertura, validação de suites GE e deploy automatizado para S3
+> - **CI com GitHub Actions**: validação das suites de Great Expectations em pull requests. O lint e a suíte completa podem ser executados localmente com `make lint` e `make test`.
 > - **Ambiente 100% local** com Docker Compose: Airflow, Spark, MinIO (S3 local), Postgres, Redis — tudo com healthchecks
 > - **Alertas no Slack** para falhas, SLA misses e resumo de execução com estatísticas de validação
 > - **Testes de verdade**: DAG integrity (8 checks), unit tests de transformações com PySpark, validação de suites GE
@@ -189,4 +189,3 @@ dataops-pipeline/
 ## Licença
 
 MIT
-
